@@ -1,10 +1,10 @@
 {
-  "description": "Dropbox 單一應用程式沙盒配置",
+  "description": "文字小說轉檔路徑配置 (Novel Folder)",
   "directories": {
-    "input_base": "/txt/新上傳",
-    "archive_base": "/txt/已處理",
-    "epub_base": "/epub/已轉檔",
-    "output_base": "/kepub/已轉檔"
+    "input_base": "/novel/txt/新上傳",
+    "archive_base": "/novel/txt/已處理",
+    "epub_base": "/novel/epub/已轉檔",
+    "output_base": "/novel/kepub/已轉檔"
   },
   "monitor_subfolders": [
     "001",
