@@ -1,1 +1,25 @@
-
+{
+  "description": "標準橫排樣式，適合大多數小說",
+  "css": [
+    "@namespace epub \"http://www.idpf.org/2007/ops\";",
+    "",
+    "body {",
+    "  line-height: 1.8;",
+    "  text-align: justify;",
+    "  padding: 0 2%;",
+    "  font-family: \"Songti SC\", \"Noto Serif CJK SC\", serif;",
+    "}",
+    "",
+    "p {",
+    "  margin: 1em 0;",
+    "  text-indent: 2em;",
+    "  display: block;",
+    "}",
+    "",
+    "h1, h2 {",
+    "  text-align: center;",
+    "  margin: 2em 0 1.5em 0;",
+    "  font-weight: bold;",
+    "}"
+  ]
+}
