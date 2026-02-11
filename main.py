@@ -2,8 +2,9 @@ import os
 import json
 import shutil
 import logging
+import uuid
 from pathlib import Path
-from core.processor import parse_chapters
+from core.processor import parse_chapters, read_file_content, s2t_convert
 from core.engine import generate_epub, run_kepubify
 from io_adapters.dropbox_client import DropboxClient
 
@@ -20,7 +21,7 @@ def main():
     io_config = load_json(base_dir / 'config' / 'io_config.json')
     profile_map = load_json(base_dir / 'config' / 'profile_map.json')
     
-    # 2. 初始化 Dropbox 客戶端 (從環境變數讀取密鑰)
+    # 2. 初始化 Dropbox 客戶端
     try:
         app_key = os.environ['DROPBOX_APP_KEY']
         app_secret = os.environ['DROPBOX_APP_SECRET']
@@ -36,37 +37,36 @@ def main():
     if work_dir.exists():
         shutil.rmtree(work_dir)
     work_dir.mkdir()
+    
+    # 準備 Kepub 輸出目錄
+    kepub_dir = work_dir / "kepub_out"
+    kepub_dir.mkdir(exist_ok=True)
 
-    # 4. 開始掃描每個子資料夾 (001, 002, 003)
+    # 4. 開始掃描
     input_base = io_config['directories']['input_base']
     output_base = io_config['directories']['output_base']
     archive_base = io_config['directories']['archive_base']
 
     for subfolder in io_config['monitor_subfolders']:
-        logging.info(f"📂 正在掃描資料夾: {subfolder} ...")
+        logging.info(f"📂 正在掃描: {subfolder} ...")
         
         # 匹配樣式
-        target_style_file = profile_map['default_style'] # 預設
+        target_style_file = profile_map['default_style']
         for mapping in profile_map['mappings']:
             if mapping['keyword'] in subfolder:
                 target_style_file = mapping['style_file']
                 break
         
-        # 讀取樣式內容
         style_path = base_dir / 'styles' / target_style_file
         style_config = load_json(style_path)
-        # 將 CSS 列表轉換為字符串
         if isinstance(style_config.get('css'), list):
             style_config['css'] = "\n".join(style_config['css'])
-
-        logging.info(f"   🎨 套用樣式: {target_style_file}")
 
         # 列出 Dropbox 檔案
         current_input_path = f"{input_base}/{subfolder}"
         files = client.list_files(current_input_path)
         
         if not files:
-            logging.info("   (無新檔案)")
             continue
 
         for file_meta in files:
@@ -74,64 +74,64 @@ def main():
             if not filename.lower().endswith('.txt'):
                 continue
                 
-            logging.info(f"   ⬇️ 發現新書: {filename}")
+            logging.info(f"   ⬇️ 處理新書: {filename}")
             
-            # 下載 TXT
-            local_txt_path = work_dir / filename
-            client.download_file(file_meta['path_lower'], local_txt_path)
+            # 使用 UUID 作為本地臨時檔名，避開特殊符號問題
+            safe_id = uuid.uuid4().hex
+            local_txt_path = work_dir / f"{safe_id}.txt"
             
-            # 讀取內容並分章
             try:
-                # 讀取內容
-                from core.processor import read_file_content, s2t_convert
-                raw_content = read_file_content(local_txt_path)
+                # 下載
+                client.download_file(file_meta['path_lower'], local_txt_path)
                 
+                # 讀取與處理
+                raw_content = read_file_content(local_txt_path)
                 if not raw_content:
-                    logging.error(f"   ❌ 編碼識別失敗: {filename}")
+                    logging.error(f"   ❌ 編碼失敗: {filename}")
                     continue
 
-                # 繁簡轉換
                 processed_content = s2t_convert(raw_content)
-                
-                # 分章
                 chapters = parse_chapters(processed_content)
                 
-                # 生成 EPUB
-                epub_name = local_txt_path.stem + ".epub"
-                local_epub_path = work_dir / epub_name
+                # 生成標準 EPUB (使用安全檔名)
+                temp_epub_path = work_dir / f"{safe_id}.epub"
                 
-                # 解析作者 (簡單邏輯：書名)
-                title = local_txt_path.stem
-                author = "Unknown"
+                # 書名和作者依然使用原始資訊
+                original_title = Path(filename).stem
+                author = "Unknown" # 未來可擴展解析邏輯
                 
-                generate_epub(title, author, chapters, local_epub_path, style_config)
+                generate_epub(original_title, author, chapters, temp_epub_path, style_config)
                 
-                # 轉換為 KePub
-                kepub_dir = work_dir / "kepub_out"
-                kepub_dir.mkdir(exist_ok=True)
-                
-                if run_kepubify(local_epub_path, kepub_dir):
-                    kepub_filename = f"{local_txt_path.stem}.kepub.epub"
-                    local_kepub_path = kepub_dir / kepub_filename
+                # 轉換為 KePub (這步最關鍵，現在輸入輸出都是純英文數字)
+                if run_kepubify(temp_epub_path, kepub_dir):
+                    # 預期的輸出檔名 (kepubify 會自動加上 .kepub.epub)
+                    expected_output = kepub_dir / f"{safe_id}.kepub.epub"
                     
-                    # 上傳到 Output (Kobo 資料夾)
-                    target_output_path = f"{output_base}/{subfolder}/{kepub_filename}"
-                    client.upload_file(local_kepub_path, target_output_path)
+                    if not expected_output.exists():
+                        logging.error(f"   ❌ 轉換後檔案遺失，可能 kepubify 執行失敗")
+                        continue
+
+                    # 準備上傳 (這裡改回原本的中文檔名)
+                    final_kepub_name = f"{original_title}.kepub.epub"
+                    target_output_path = f"{output_base}/{subfolder}/{final_kepub_name}"
                     
-                    # 歸檔原始 TXT
-                    target_archive_path = f"{archive_base}/{subfolder}/{filename}"
-                    client.move_file(file_meta['path_lower'], target_archive_path)
-                    
-                    logging.info(f"   ✅ 處理完成: {filename}")
+                    logging.info(f"   ☁️ 上傳為: {final_kepub_name}")
+                    if client.upload_file(expected_output, target_output_path):
+                        # 只有上傳成功才歸檔
+                        target_archive_path = f"{archive_base}/{subfolder}/{filename}"
+                        client.move_file(file_meta['path_lower'], target_archive_path)
+                        logging.info(f"   ✅ 全部完成: {filename}")
+                else:
+                    logging.error(f"   ❌ Kepubify 轉換指令返回錯誤")
                 
             except Exception as e:
-                logging.error(f"   ❌ 處理失敗 {filename}: {e}")
-                import traceback
-                traceback.print_exc()
+                logging.error(f"   ❌ 異常中斷 {filename}: {e}")
+                # 發生錯誤時，不要刪除 Dropbox 上的原檔，以便重試
 
     # 清理臨時區
-    shutil.rmtree(work_dir)
-    logging.info("🏁 全部任務結束")
+    if work_dir.exists():
+        shutil.rmtree(work_dir)
+    logging.info("🏁 任務結束")
 
 if __name__ == "__main__":
     main()
