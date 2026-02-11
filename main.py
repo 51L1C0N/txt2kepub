@@ -37,13 +37,16 @@ def main():
     kepub_dir = work_dir / "kepub_out"
     kepub_dir.mkdir(exist_ok=True)
 
+    # 讀取沙盒路徑配置
     input_base = io_config['directories']['input_base']
-    output_base = io_config['directories']['output_base']
     archive_base = io_config['directories']['archive_base']
+    epub_base = io_config['directories']['epub_base']
+    output_base = io_config['directories']['output_base']
 
     for subfolder in io_config['monitor_subfolders']:
-        logging.info(f"📂 正在掃描: {subfolder} ...")
+        logging.info(f"📂 正在掃描沙盒資料夾: {subfolder} ...")
         
+        # 樣式選擇邏輯
         target_style_file = profile_map['default_style']
         for mapping in profile_map['mappings']:
             if mapping['keyword'] in subfolder:
@@ -55,6 +58,7 @@ def main():
         if isinstance(style_config.get('css'), list):
             style_config['css'] = "\n".join(style_config['css'])
 
+        # 在沙盒內列出檔案
         current_input_path = f"{input_base}/{subfolder}"
         files = client.list_files(current_input_path)
         
@@ -67,58 +71,57 @@ def main():
                 continue
                 
             logging.info(f"   ⬇️ 處理新書: {filename}")
-            
             safe_id = uuid.uuid4().hex
             local_txt_path = work_dir / f"{safe_id}.txt"
             
             try:
+                # 1. 下載原始 TXT
                 client.download_file(file_meta['path_lower'], local_txt_path)
                 
+                # 2. 文本處理與分章
                 raw_content = read_file_content(local_txt_path)
                 if not raw_content:
                     logging.error(f"   ❌ 編碼失敗: {filename}")
                     continue
-
                 processed_content = s2t_convert(raw_content)
                 chapters = parse_chapters(processed_content)
                 
+                # 3. 生成標準 EPUB (中間產物)
                 temp_epub_path = work_dir / f"{safe_id}.epub"
                 original_title = Path(filename).stem
-                
                 generate_epub(original_title, "Unknown", chapters, temp_epub_path, style_config)
                 
+                # --- [新增] 上傳標準 EPUB 到 epub/已轉檔 ---
+                final_epub_name = f"{original_title}.epub"
+                target_epub_path = f"{epub_base}/{subfolder}/{final_epub_name}"
+                logging.info(f"   ☁️ 備份標準 EPUB: {final_epub_name}")
+                client.upload_file(temp_epub_path, target_epub_path)
+                
+                # 4. 執行 KePub 轉換
                 if run_kepubify(temp_epub_path, kepub_dir):
-                    # ✅ 修正重點：兼容兩種可能的輸出檔名
-                    possible_names = [
-                        f"{safe_id}.kepub.epub",           # 標準情況
-                        f"{safe_id}_converted.kepub.epub"  # 現在遇到的情況
-                    ]
-                    
-                    found_file = None
-                    for name in possible_names:
-                        f_path = kepub_dir / name
-                        if f_path.exists():
-                            found_file = f_path
-                            break
+                    # 尋找轉換後的檔案
+                    possible_names = [f"{safe_id}.kepub.epub", f"{safe_id}_converted.kepub.epub"]
+                    found_file = next((kepub_dir / n for n in possible_names if (kepub_dir / n).exists()), None)
                     
                     if not found_file:
-                        logging.error(f"   ❌ 轉換後檔案遺失！(已檢查: {possible_names})")
-                        logging.error(f"   🔍 現場勘查: {list(kepub_dir.iterdir())}")
+                        logging.error(f"   ❌ KePub 轉換成功但找不到檔案")
                         continue
 
+                    # 5. 上傳 KePub 到 kepub/已轉檔
                     final_kepub_name = f"{original_title}.kepub.epub"
                     target_output_path = f"{output_base}/{subfolder}/{final_kepub_name}"
+                    logging.info(f"   ☁️ 上傳最終 KePub: {final_kepub_name}")
                     
-                    logging.info(f"   ☁️ 上傳為: {final_kepub_name}")
                     if client.upload_file(found_file, target_output_path):
+                        # 6. 歸檔原始 TXT
                         target_archive_path = f"{archive_base}/{subfolder}/{filename}"
                         client.move_file(file_meta['path_lower'], target_archive_path)
-                        logging.info(f"   ✅ 全部完成: {filename}")
+                        logging.info(f"   ✅ 全部流程完成: {filename}")
                 else:
-                    logging.error(f"   ❌ Kepubify 轉換指令返回錯誤")
+                    logging.error(f"   ❌ Kepubify 執行失敗")
                 
             except Exception as e:
-                logging.error(f"   ❌ 異常中斷 {filename}: {e}")
+                logging.error(f"   ❌ 處理中斷 {filename}: {e}")
 
     if work_dir.exists():
         shutil.rmtree(work_dir)
