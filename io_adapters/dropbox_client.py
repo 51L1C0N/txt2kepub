@@ -39,11 +39,11 @@ class DropboxClient:
             "recursive": False
         }
         
+        # ✅ 修正這裡：初始化 files 清單
+        files = []
+        
         try:
-            # 💡 修正重點：使用 json.dumps 並確保 ASCII 編碼
-            # 這樣 "小説" 會被轉為 "\u5c0f\u8aaa"，避免 HTTP 傳輸亂碼導致 400 錯誤
             payload = json.dumps(data) 
-            
             response = requests.post(url, headers=headers, data=payload)
             
             if response.status_code == 409: 
@@ -58,7 +58,6 @@ class DropboxClient:
                     files.append(entry)
             return files
         except Exception as e:
-            # 這裡會印出詳細錯誤內容，方便除錯
             if 'response' in locals() and response.status_code == 400:
                  print(f"❌ 請求內容錯誤: {response.text}")
             print(f"⚠️ 讀取目錄失敗 ({folder_path}): {e}")
@@ -68,7 +67,6 @@ class DropboxClient:
         url = "https://content.dropboxapi.com/2/files/download"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            # Header 必須使用 ASCII 編碼的 JSON
             "Dropbox-API-Arg": json.dumps({"path": dropbox_path})
         }
         
@@ -93,7 +91,6 @@ class DropboxClient:
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/octet-stream",
-            # Header 必須使用 ASCII 編碼的 JSON
             "Dropbox-API-Arg": json.dumps({
                 "path": dropbox_path,
                 "mode": "overwrite",
@@ -123,7 +120,6 @@ class DropboxClient:
         }
         
         try:
-            # 💡 修正重點：同樣使用 json.dumps
             payload = json.dumps(data)
             response = requests.post(url, headers=headers, data=payload)
             response.raise_for_status()
