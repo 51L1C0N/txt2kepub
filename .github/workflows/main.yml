@@ -40,6 +40,6 @@ jobs:
         # 如果您堅持放在 Variables，請把 secrets. 改成 vars.
         # 但強烈建議 Secret 和 Token 用 secrets.
         DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY || vars.DROPBOX_APP_KEY }}
-        DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_KEY || vars.DROPBOX_APP_KEY }}
-        DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_APP_KEY || vars.DROPBOX_APP_KEY }}
+        DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET || vars.DROPBOX_APP_SECRET }}
+        DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN || vars.DROPBOX_REFRESH_TOKEN }}
       run: python main.py
