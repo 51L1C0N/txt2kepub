@@ -1,4 +1,3 @@
-# core/engine.py
 import zipfile
 import uuid
 import subprocess
@@ -10,17 +9,12 @@ from pathlib import Path
 def generate_epub(title, author, chapters, output_path, style_config):
     """
     生成標準 EPUB 文件
-    :param style_config: 字典，包含 'css', 'font', 'line_height' 等配置
     """
     book_uuid = uuid.uuid4()
     
-    # 從配置中讀取 CSS，如果沒有則使用預設值
-    css_content = style_config.get('css', """
-    @namespace epub "http://www.idpf.org/2007/ops";
-    body { text-align: justify; padding: 0 2%; }
-    p { text-indent: 2em; margin: 1em 0; }
-    """)
-
+    # CSS 處理
+    css_content = style_config.get('css', "")
+    
     with zipfile.ZipFile(output_path, 'w', compression=zipfile.ZIP_DEFLATED) as z:
         z.writestr('mimetype', 'application/epub+zip', compress_type=zipfile.ZIP_STORED)
         z.writestr('META-INF/container.xml', '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>')
@@ -41,7 +35,6 @@ def generate_epub(title, author, chapters, output_path, style_config):
             spine.append(f'<itemref idref="ch{i}"/>')
             toc_html.append(f'<li><a href="{filename}">{ch_title}</a></li>')
 
-        # 生成 OPF
         opf = f'''<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="pub-id">
 <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -60,7 +53,6 @@ def generate_epub(title, author, chapters, output_path, style_config):
 </package>'''
         z.writestr('OEBPS/content.opf', opf)
         
-        # 生成 NAV
         nav = f'''<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
 <head><title>目录</title></head><body><nav epub:type="toc"><h1>目录</h1><ol>{"".join(toc_html)}</ol></nav></body></html>'''
@@ -68,28 +60,42 @@ def generate_epub(title, author, chapters, output_path, style_config):
 
 def run_kepubify(epub_path, output_dir):
     """
-    調用 bin/kepubify 進行轉換
+    調用 bin/kepubify 進行轉換 (Debug 模式)
     """
-    # 定位二進制工具的路徑 (假設在專案根目錄的 bin/ 下)
-    # 獲取當前文件(engine.py)的上兩級目錄作為專案根目錄
     project_root = Path(__file__).resolve().parent.parent
     kepubify_path = project_root / 'bin' / 'kepubify'
 
     if not kepubify_path.exists():
-        raise FileNotFoundError(f"找不到轉換工具: {kepubify_path}")
+        print(f"🚨 錯誤：找不到工具 {kepubify_path}")
+        return False
 
-    # 確保工具有執行權限 (在 Linux 環境下這是必須的)
     st = os.stat(kepubify_path)
     os.chmod(kepubify_path, st.st_mode | stat.S_IEXEC)
 
+    # 打印調試信息
+    print(f"🔧 執行工具: {kepubify_path}")
+    print(f"📄 輸入檔案: {epub_path} (Size: {epub_path.stat().st_size} bytes)")
+    print(f"📂 輸出目錄: {output_dir}")
+
     try:
-        # 執行轉換命令
-        subprocess.run(
+        # 強制捕獲並打印所有輸出
+        result = subprocess.run(
             [str(kepubify_path), str(epub_path), '-o', str(output_dir)], 
-            check=True,
+            check=False, # 不自動報錯，讓我們自己處理
             capture_output=True
         )
+        
+        # 打印工具的「心聲」
+        if result.stdout:
+            print(f"📋 [Kepubify Stdout]:\n{result.stdout.decode(errors='ignore')}")
+        if result.stderr:
+            print(f"⚠️ [Kepubify Stderr]:\n{result.stderr.decode(errors='ignore')}")
+            
+        if result.returncode != 0:
+            print(f"❌ Kepubify 返回錯誤代碼: {result.returncode}")
+            return False
+            
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"Kepubify Error: {e.stderr.decode()}")
+    except Exception as e:
+        print(f"❌ 執行異常: {e}")
         return False
