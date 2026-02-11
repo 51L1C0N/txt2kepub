@@ -1,0 +1,27 @@
+{
+  "description": "古風直排樣式，適合武俠或歷史小說",
+  "css": [
+    "@namespace epub \"http://www.idpf.org/2007/ops\";",
+    "",
+    "html {",
+    "  writing-mode: vertical-rl;",
+    "  -webkit-writing-mode: vertical-rl;",
+    "}",
+    "",
+    "body {",
+    "  line-height: 2.0;",
+    "  margin: 3% 0;",
+    "  font-family: \"KaiTi\", \"楷体\", serif;",
+    "}",
+    "",
+    "p {",
+    "  margin: 0 1em;",
+    "  text-indent: 2em;",
+    "}",
+    "",
+    "h1, h2 {",
+    "  margin: 0 2em 0 1em;",
+    "  font-weight: bold;",
+    "}"
+  ]
+}
