@@ -1,0 +1,30 @@
+{
+  "description": "輕小說/網文專用樣式，使用寬行距",
+  "css": [
+    "@namespace epub \"http://www.idpf.org/2007/ops\";",
+    "",
+    "body {",
+    "  line-height: 2.0;",
+    "  letter-spacing: 0.2em;",
+    "  padding: 0 0%;",
+    "  /* 輕小說常用襯線体，閱讀負擔更小 */",
+    "  font-family: serif;",
+    "}",
+    "",
+    "p {",
+    "  margin-top: 1.5em;",
+    "  margin-bottom: 1.5em;",
+    "  text-indent: 1.7em;",
+    "  display: block;",
+    "}",
+    "",
+    "h1, h2 {",
+    "  text-align: center;",
+    "  margin: 2.5em 0 1.5em 0;",
+    "  font-weight: bold;",
+    "  /* 標題下方增加一條細線，增加精緻感 */",
+    "  border-bottom: 1px solid #888;",
+    "  padding-bottom: 0.3em;",
+    "}"
+  ]
+}
