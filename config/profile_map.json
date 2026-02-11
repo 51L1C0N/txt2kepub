@@ -1,0 +1,20 @@
+{
+  "mappings": [
+    {
+      "keyword": "001",
+      "style_file": "default.json",
+      "description": "標準橫排 (001)"
+    },
+    {
+      "keyword": "002",
+      "style_file": "vertical.json",
+      "description": "古風直排 (002)"
+    },
+    {
+      "keyword": "003",
+      "style_file": "light_novel.json",
+      "description": "輕小說黑體 (003)"
+    }
+  ],
+  "default_style": "default.json"
+}
