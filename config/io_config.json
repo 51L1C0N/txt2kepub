@@ -1,9 +1,10 @@
 {
-  "description": "Dropbox 路徑配置 (Full Dropbox 模式)",
+  "description": "Dropbox 單一應用程式目錄封裝配置",
   "directories": {
-    "input_base": "/小説/txt/新上傳",
-    "archive_base": "/小説/txt/已處理",
-    "output_base": "/應用程式/Rakuten Kobo/小說"
+    "input_base": "/應用程式/HanYun-Ebook-Converter/txt/新上傳",
+    "archive_base": "/應用程式/HanYun-Ebook-Converter/txt/已處理",
+    "epub_base": "/應用程式/HanYun-Ebook-Converter/epub/已轉檔",
+    "output_base": "/應用程式/HanYun-Ebook-Converter/kepub/已轉檔"
   },
   "monitor_subfolders": [
     "001",
