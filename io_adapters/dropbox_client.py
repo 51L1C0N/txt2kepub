@@ -11,9 +11,6 @@ class DropboxClient:
         self.access_token = self._get_new_token()
 
     def _get_new_token(self):
-        """
-        使用 Refresh Token 換取臨時的 Access Token
-        """
         url = "https://api.dropbox.com/oauth2/token"
         data = {
             "grant_type": "refresh_token",
@@ -32,9 +29,6 @@ class DropboxClient:
             raise
 
     def list_files(self, folder_path):
-        """
-        列出指定資料夾下的所有檔案
-        """
         url = "https://api.dropboxapi.com/2/files/list_folder"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -45,12 +39,15 @@ class DropboxClient:
             "recursive": False
         }
         
-        files = []
         try:
-            response = requests.post(url, headers=headers, json=data)
-            # 如果資料夾不存在或為空，API 可能會報錯，這裡做個簡單處理
+            # 💡 修正重點：使用 json.dumps 並確保 ASCII 編碼
+            # 這樣 "小説" 會被轉為 "\u5c0f\u8aaa"，避免 HTTP 傳輸亂碼導致 400 錯誤
+            payload = json.dumps(data) 
+            
+            response = requests.post(url, headers=headers, data=payload)
+            
             if response.status_code == 409: 
-                print(f"⚠️ 資料夾可能不存在: {folder_path}")
+                print(f"⚠️ 資料夾不存在或路徑錯誤: {folder_path}")
                 return []
                 
             response.raise_for_status()
@@ -61,16 +58,17 @@ class DropboxClient:
                     files.append(entry)
             return files
         except Exception as e:
+            # 這裡會印出詳細錯誤內容，方便除錯
+            if 'response' in locals() and response.status_code == 400:
+                 print(f"❌ 請求內容錯誤: {response.text}")
             print(f"⚠️ 讀取目錄失敗 ({folder_path}): {e}")
             return []
 
     def download_file(self, dropbox_path, local_path):
-        """
-        下載檔案
-        """
         url = "https://content.dropboxapi.com/2/files/download"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
+            # Header 必須使用 ASCII 編碼的 JSON
             "Dropbox-API-Arg": json.dumps({"path": dropbox_path})
         }
         
@@ -87,21 +85,18 @@ class DropboxClient:
             return False
 
     def upload_file(self, local_path, dropbox_path):
-        """
-        上傳檔案 (覆蓋模式)
-        """
         url = "https://content.dropboxapi.com/2/files/upload"
         
-        # 讀取二進制數據
         with open(local_path, "rb") as f:
             data = f.read()
 
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/octet-stream",
+            # Header 必須使用 ASCII 編碼的 JSON
             "Dropbox-API-Arg": json.dumps({
                 "path": dropbox_path,
-                "mode": "overwrite",  # 如果存在則覆蓋
+                "mode": "overwrite",
                 "mute": True
             })
         }
@@ -116,9 +111,6 @@ class DropboxClient:
             return False
 
     def move_file(self, from_path, to_path):
-        """
-        移動檔案 (用於歸檔)
-        """
         url = "https://api.dropboxapi.com/2/files/move_v2"
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -127,11 +119,13 @@ class DropboxClient:
         data = {
             "from_path": from_path,
             "to_path": to_path,
-            "autorename": True  # 如果目標有同名檔案，自動改名避免錯誤
+            "autorename": True
         }
         
         try:
-            response = requests.post(url, headers=headers, json=data)
+            # 💡 修正重點：同樣使用 json.dumps
+            payload = json.dumps(data)
+            response = requests.post(url, headers=headers, data=payload)
             response.raise_for_status()
             print(f"📦 已歸檔: {Path(from_path).name}")
             return True
