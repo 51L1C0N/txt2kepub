@@ -1,0 +1,15 @@
+{
+  "description": "Google Drive 文字小說轉檔配置 (專用)",
+  "directories": {
+    "input_base": "/novel/txt/新上傳",
+    "archive_base": "/novel/txt/已處理",
+    "epub_base": "/novel/epub/已轉檔",
+    "output_base": "/Rakuten Kobo/小說"
+  },
+  "monitor_subfolders": [
+    "001",
+    "002",
+    "003"
+  ],
+  "file_extensions": [".txt"]
+}
