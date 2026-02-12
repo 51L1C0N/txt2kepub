@@ -1,0 +1,12 @@
+{
+  "description": "Google Drive 漫畫轉檔配置 (專用)",
+  "directories": {
+    "input_base": "/manga/epub/新上傳",
+    "archive_base": "/manga/epub/已處理",
+    "output_base": "/Rakuten Kobo/漫畫"
+  },
+  "monitor_subfolders": [
+    "001",
+    "002"
+  ]
+}
