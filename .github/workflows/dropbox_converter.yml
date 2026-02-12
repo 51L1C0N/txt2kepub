@@ -33,7 +33,7 @@ jobs:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         with:
           timeout_minutes: 15
-          max_attempts: 3
+          max_attempts: 1
           retry_wait_seconds: 30
           command: python main.py
 
@@ -50,6 +50,6 @@ jobs:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         with:
           timeout_minutes: 30  # 漫畫處理較久，給多一點時間
-          max_attempts: 3
+          max_attempts: 1
           retry_wait_seconds: 30
           command: python manga_main.py
